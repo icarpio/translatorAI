@@ -23,6 +23,8 @@
                     <th>ID</th>
                     <th>Español</th>
                     <th>Detalle</th>
+                    <th>Delete</th>
+
                 </tr>
             </thead>
             <tbody id="traducciones-body">
@@ -55,6 +57,8 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         const API_URL = "https://albertaapi.onrender.com/api5/list/";
+        const API_DELETE_URL = "https://albertaapi.onrender.com/api5/delete/";
+        
         const tbody = document.getElementById('traducciones-body');
         const table = document.getElementById('traducciones-table');
         const loading = document.getElementById('loading');
@@ -75,6 +79,7 @@
                             <td>${t.id}</td>
                             <td>${t.español}</td>
                             <td><button class="btn btn-primary btn-sm" onclick="mostrarDetalle(${t.id})">Ver Detalle</button></td>
+                            <button class="btn btn-danger btn-sm" onclick="borrarTraduccion(${t.id})">🗑️</button>
                         `;
                         tbody.appendChild(row);
                     });
@@ -106,6 +111,28 @@
             const utterance = new SpeechSynthesisUtterance(texto);
             utterance.lang = lang;
             speechSynthesis.speak(utterance);
+        }
+
+        // Borrar traducción
+        async function borrarTraduccion(id) {
+        if (!confirm("¿Seguro que quieres borrar esta traducción?")) return;
+
+        try {
+            const response = await fetch(API_DELETE_URL + id + "/", {
+            method: "DELETE"
+            });
+            const data = await response.json();
+
+            if (response.ok) {
+            alert(data.mensaje);
+            cargarTraducciones(); // recargar tabla
+            } else {
+            alert(data.error || "Error al borrar");
+            }
+        } catch (err) {
+            console.error("Error:", err);
+            alert("Error en la conexión al servidor");
+        }
         }
     </script>
 </body>
