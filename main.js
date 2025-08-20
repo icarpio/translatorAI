@@ -1,5 +1,5 @@
-const API_URL = "https://translatorai-5t87.onrender.com/api5/traducir/";
-const API_SAVE_URL = "https://translatorai-5t87.onrender.com/api5/save/";
+const API_URL = "https://albertaapi.onrender.com/api5/traducir/";
+const API_SAVE_URL = "https://albertaapi.onrender.com/api5/save/";
 
 let ultimasTraducciones = {}; // Para almacenar las traducciones actuales
 
