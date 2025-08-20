@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!DOCTYPE html> 
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -24,7 +24,6 @@
                     <th>Español</th>
                     <th>Detalle</th>
                     <th>Delete</th>
-
                 </tr>
             </thead>
             <tbody id="traducciones-body">
@@ -65,10 +64,18 @@
 
         let traduccionesData = [];
 
-        fetch(API_URL)
-            .then(res => res.json())
-            .then(data => {
-                loading.style.display = 'none';
+        // Función que carga traducciones
+        async function cargarTraducciones() {
+            tbody.innerHTML = "";
+            loading.style.display = "block";
+            table.style.display = "none";
+
+            try {
+                const res = await fetch(API_URL);
+                const data = await res.json();
+
+                loading.style.display = "none";
+
                 if (data.traducciones && data.traducciones.length > 0) {
                     table.style.display = 'table';
                     traduccionesData = data.traducciones;
@@ -86,11 +93,11 @@
                 } else {
                     loading.textContent = 'No hay traducciones guardadas.';
                 }
-            })
-            .catch(err => {
-                console.error('Error cargando traducciones:', err);
+            } catch (err) {
+                console.error("Error cargando traducciones:", err);
                 loading.textContent = 'Error al cargar traducciones.';
-            });
+            }
+        }
 
         function mostrarDetalle(id) {
             const t = traduccionesData.find(item => item.id === id);
@@ -115,25 +122,34 @@
 
         // Borrar traducción
         async function borrarTraduccion(id) {
-        if (!confirm("¿Seguro que quieres borrar esta traducción?")) return;
+            if (!confirm("¿Seguro que quieres borrar esta traducción?")) return;
 
-        try {
-            const response = await fetch(API_DELETE_URL + id + "/", {
-            method: "DELETE"
-            });
-            const data = await response.json();
+            try {
+                const response = await fetch(API_DELETE_URL + id + "/", { method: "DELETE" });
 
-            if (response.ok) {
-            alert(data.mensaje);
-            cargarTraducciones(); // recargar tabla
-            } else {
-            alert(data.error || "Error al borrar");
+                // Si la API responde 204 No Content, no intentes parsear JSON
+                if (response.status === 204) {
+                    alert("Traducción eliminada correctamente");
+                    cargarTraducciones();
+                    return;
+                }
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert(data.mensaje || "Traducción eliminada");
+                    cargarTraducciones();
+                } else {
+                    alert(data.error || "Error al borrar");
+                }
+            } catch (err) {
+                console.error("Error:", err);
+                alert("Error en la conexión al servidor");
             }
-        } catch (err) {
-            console.error("Error:", err);
-            alert("Error en la conexión al servidor");
         }
-        }
+
+        // Cargar lista al iniciar
+        document.addEventListener("DOMContentLoaded", cargarTraducciones);
     </script>
 </body>
 </html>
