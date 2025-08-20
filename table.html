@@ -58,7 +58,7 @@
     <script>
         const API_URL = "https://albertaapi.onrender.com/api5/list/";
         const API_DELETE_URL = "https://albertaapi.onrender.com/api5/delete/";
-        
+
         const tbody = document.getElementById('traducciones-body');
         const table = document.getElementById('traducciones-table');
         const loading = document.getElementById('loading');
@@ -79,7 +79,7 @@
                             <td>${t.id}</td>
                             <td>${t.español}</td>
                             <td><button class="btn btn-primary btn-sm" onclick="mostrarDetalle(${t.id})">Ver Detalle</button></td>
-                            <button class="btn btn-danger btn-sm" onclick="borrarTraduccion(${t.id})">🗑️</button>
+                            <td><button class="btn btn-danger btn-sm" onclick="borrarTraduccion(${t.id})">🗑️</button></td>
                         `;
                         tbody.appendChild(row);
                     });
