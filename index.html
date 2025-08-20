@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Traductor Automático con OpenAI</title>
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    .flag-img {
+      width: 32px;
+      height: 20px;
+      margin-right: 0.5rem;
+      object-fit: cover;
+      vertical-align: middle;
+    }
+  </style>
+</head>
+<body class="bg-light">
+
+<div class="container py-5">
+  <h1 class="mb-4 text-center">🌐 Traductor Automático</h1>
+
+  <div class="mb-3">
+    <textarea id="texto" class="form-control" rows="4" placeholder="Escribe tu texto aquí..."></textarea>
+  </div>
+  <div class="text-center mb-5">
+    <button id="traducirBtn" class="btn btn-primary btn-lg">Traducir</button>
+  </div>
+
+  <h2 class="mb-3">Traducciones:</h2>
+  <div class="list-group">
+    <div class="list-group-item d-flex justify-content-between align-items-center">
+      <div>
+        <img src="https://flagcdn.com/es.svg" class="flag-img" alt="Español">
+        <strong>Español:</strong> <span id="traduccion-espanol"></span>
+      </div>
+      <button class="btn btn-outline-secondary btn-sm" onclick="leerTexto('traduccion-espanol', 'es-ES')">🔊</button>
+    </div>
+
+    <div class="list-group-item d-flex justify-content-between align-items-center">
+      <div>
+        <img src="https://flagcdn.com/gb.svg" class="flag-img" alt="Inglés Británico">
+        <strong>Inglés:</strong> <span id="traduccion-ingles"></span>
+      </div>
+      <button class="btn btn-outline-secondary btn-sm" onclick="leerTexto('traduccion-ingles', 'en-GB')">🔊</button>
+    </div>
+
+    <div class="list-group-item d-flex justify-content-between align-items-center">
+      <div>
+        <img src="https://flagcdn.com/it.svg" class="flag-img" alt="Italiano">
+        <strong>Italiano:</strong> <span id="traduccion-italiano"></span>
+      </div>
+      <button class="btn btn-outline-secondary btn-sm" onclick="leerTexto('traduccion-italiano', 'it-IT')">🔊</button>
+    </div>
+  </div>
+
+  <!-- Botón para ir a table.html -->
+  <div class="text-center mt-4">
+    <a href="table.html" class="btn btn-success btn-lg">Ver todas las traducciones</a>
+  </div>
+
+  <!-- El botón de guardar traducciones se añadirá dinámicamente desde el JS -->
+</div>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<!-- Nuestro JS -->
+<script src="main.js"></script>
+</body>
+</html>

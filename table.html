@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Lista de Traducciones</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 12px; border: 1px solid #ddd; text-align: left; }
+        th { background-color: #f4f4f4; }
+        tr:hover { background-color: #f1f1f1; }
+        #loading { font-size: 16px; color: #555; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Lista de Traducciones</h1>
+        <div id="loading">Cargando traducciones...</div>
+        <table id="traducciones-table" class="table table-striped" style="display: none;">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Español</th>
+                    <th>Detalle</th>
+                </tr>
+            </thead>
+            <tbody id="traducciones-body">
+                <!-- Filas se llenarán con JS -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Modal para detalle -->
+    <div class="modal fade" id="detalleModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Detalle de Traducción</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <p><strong>Español:</strong> <span id="modal-espanol"></span> <button class="btn btn-sm btn-outline-secondary" onclick="leerTextoModal('modal-espanol','es-ES')">🔊</button></p>
+            <p><strong>Inglés:</strong> <span id="modal-ingles"></span> <button class="btn btn-sm btn-outline-secondary" onclick="leerTextoModal('modal-ingles','en-GB')">🔊</button></p>
+            <p><strong>Italiano:</strong> <span id="modal-italiano"></span> <button class="btn btn-sm btn-outline-secondary" onclick="leerTextoModal('modal-italiano','it-IT')">🔊</button></p>
+            <p><strong>Fecha de Creación:</strong> <span id="modal-fecha"></span></p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const API_URL = "http://127.0.0.1:8000/api5/list/";
+        const tbody = document.getElementById('traducciones-body');
+        const table = document.getElementById('traducciones-table');
+        const loading = document.getElementById('loading');
+
+        let traduccionesData = [];
+
+        fetch(API_URL)
+            .then(res => res.json())
+            .then(data => {
+                loading.style.display = 'none';
+                if (data.traducciones && data.traducciones.length > 0) {
+                    table.style.display = 'table';
+                    traduccionesData = data.traducciones;
+
+                    traduccionesData.forEach(t => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${t.id}</td>
+                            <td>${t.español}</td>
+                            <td><button class="btn btn-primary btn-sm" onclick="mostrarDetalle(${t.id})">Ver Detalle</button></td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+                } else {
+                    loading.textContent = 'No hay traducciones guardadas.';
+                }
+            })
+            .catch(err => {
+                console.error('Error cargando traducciones:', err);
+                loading.textContent = 'Error al cargar traducciones.';
+            });
+
+        function mostrarDetalle(id) {
+            const t = traduccionesData.find(item => item.id === id);
+            if(!t) return alert("Traducción no encontrada");
+
+            document.getElementById('modal-espanol').textContent = t.español;
+            document.getElementById('modal-ingles').textContent = t.ingles;
+            document.getElementById('modal-italiano').textContent = t.italiano;
+            document.getElementById('modal-fecha').textContent = t.fecha_creacion || 'Sin fecha';
+
+            const modal = new bootstrap.Modal(document.getElementById('detalleModal'));
+            modal.show();
+        }
+
+        function leerTextoModal(idElemento, lang) {
+            const texto = document.getElementById(idElemento).textContent.trim();
+            if(!texto) return;
+            const utterance = new SpeechSynthesisUtterance(texto);
+            utterance.lang = lang;
+            speechSynthesis.speak(utterance);
+        }
+    </script>
+</body>
+</html>
