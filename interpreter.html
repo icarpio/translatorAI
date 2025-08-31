@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="../images/favicon.png" type="image/png" />
+    <title>Intérprete</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        margin: 20px;
+      }
+      .row {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      button {
+        padding: 10px 14px;
+        font-size: 16px;
+      }
+      select,
+      input {
+        padding: 8px;
+        font-size: 16px;
+      }
+      .log {
+        margin-top: 12px;
+        background: #f6f6f6;
+        padding: 10px;
+        border-radius: 8px;
+        min-height: 70px;
+      }
+      .pill {
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: #eef;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🎧 Intérprete</h1>
+
+ <div class="row" style="display: flex; align-items: flex-start; gap: 20px;">
+  <!-- Selector de idioma -->
+  <div style="display: flex; flex-direction: column;">
+    <label for="yourLang">Idioma de salida:</label>
+    <select id="yourLang">
+      <option value="es">Español</option>
+      <option value="en">Inglés</option>
+      <option value="it">Italiano</option>
+    </select>
+  </div>
+
+  <!-- Selector de voz -->
+  <div style="display: flex; flex-direction: column;">
+    <label for="ttsVoice">Voz:</label>
+    <select id="ttsVoice">
+     <option value="onyx">Onyx</option>
+      <option value="nova">Nova</option>
+       <option value="echo">Echo</option>
+      <option value="fable">Fable</option>
+      <option value="alloy">Alloy</option>
+    </select>
+  </div>
+</div>
+
+    
+    <h2>Ellos → Tú</h2>
+    <div class="row">
+      <button id="btnListenOther">🎙️ Escuchar</button>
+      <button id="btnStopOther" disabled>⏹️</button>
+      <span class="pill" id="statusOther">parado</span>
+    </div>
+    <div class="log" id="logOther"></div>
+
+    <h2>Tú → Ellos</h2>
+    <div class="row">
+      <button id="btnTalkMe">🎤 Hablar y traducir</button>
+      <button id="btnStopMe" disabled>⏹️</button>
+      <label>Idioma destino:</label>
+      <select id="destLang">
+        <option value="en">Inglés</option>
+        <option value="it">Italiano</option>
+        <option value="es">Español</option>
+        <!--<option value="fr">Francés</option>
+      <option value="de">Alemán</option>
+      <option value="pt">Portugués</option>
+      <option value="ja">Japonés</option>
+      <option value="zh">Chino</option>
+      <option value="ar">Árabe</option>
+      <option value="hi">Hindi</option>-->
+      </select>
+    </div>
+    <div class="log" id="logMe"></div>
+
+    <audio id="player" preload="auto"></audio>
+
+    <script>
+      const API = "https://albertaapi.onrender.com/interpreter";
+      const player = document.getElementById("player");
+
+      // ---- Utils HTTP
+      async function postJSON(url, body) {
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        if (!res.ok) throw new Error(await res.text());
+        return res.json();
+      }
+      async function postAudio(url, blob) {
+        const form = new FormData();
+        form.append("audio", blob, "audio.webm");
+        const res = await fetch(url, { method: "POST", body: form });
+        if (!res.ok) throw new Error(await res.text());
+        return res.json();
+      }
+
+      async function ttsFetchBlob(text, voice) {
+        const res = await fetch(`${API}/tts/`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text, voice }),
+        });
+        if (!res.ok) throw new Error("TTS failed");
+        const buf = await res.arrayBuffer();
+        return new Blob([buf], { type: "audio/mpeg" }); // fijo a mp3
+      }
+
+      function playBlob(blob) {
+        const url = URL.createObjectURL(blob);
+        player.src = url;
+        player.play().catch(() => {
+          console.warn(
+            "El navegador bloqueó autoplay. Toca la pantalla y vuelve a reproducir."
+          );
+        });
+      }
+
+      // ---- MediaRecorder
+      function createRecorder({ onStop }) {
+        let mediaRecorder;
+        let chunks = [];
+
+        async function start() {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            audio: true,
+          });
+          mediaRecorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+
+          mediaRecorder.ondataavailable = (e) =>
+            e.data.size > 0 && chunks.push(e.data);
+          mediaRecorder.onstop = () => {
+            const blob = new Blob(chunks, { type: "audio/webm" });
+            chunks = [];
+            onStop(blob);
+          };
+
+          mediaRecorder.start();
+          return mediaRecorder;
+        }
+        function stop() {
+          if (mediaRecorder && mediaRecorder.state !== "inactive")
+            mediaRecorder.stop();
+        }
+        return { start, stop };
+      }
+
+      // ---- Ellos → Tú
+      (function initOtherToYou() {
+        const btnStart = document.getElementById("btnListenOther");
+        const btnStop = document.getElementById("btnStopOther");
+        const status = document.getElementById("statusOther");
+        const log = document.getElementById("logOther");
+        const yourLang = document.getElementById("yourLang");
+        const ttsVoice = document.getElementById("ttsVoice");
+
+        const rec = createRecorder({
+          onStop: async (blob) => {
+            try {
+              status.textContent = "transcribiendo…";
+              const { text } = await postAudio(`${API}/transcribe/`, blob);
+              log.innerHTML = `<b>Escuchado:</b> ${text}`;
+
+              status.textContent = "traduciendo…";
+              const { translated_text } = await postJSON(`${API}/translate/`, {
+                text,
+                target_lang: yourLang.value,
+              });
+              log.innerHTML += `<br/><b>Traducción:</b> ${translated_text}`;
+
+              status.textContent = "sintetizando…";
+              const ttsBlob = await ttsFetchBlob(
+                translated_text,
+                ttsVoice.value
+              );
+              playBlob(ttsBlob);
+
+              status.textContent = "listo";
+            } catch (e) {
+              status.textContent = "error";
+              console.error(e);
+            }
+          },
+        });
+
+        btnStart.addEventListener("click", async () => {
+          btnStart.disabled = true;
+          btnStop.disabled = false;
+          status.textContent = "grabando…";
+          await rec.start();
+        });
+        btnStop.addEventListener("click", () => {
+          btnStart.disabled = false;
+          btnStop.disabled = true;
+          status.textContent = "procesando…";
+          rec.stop();
+        });
+      })();
+
+      // ---- Tú → Ellos
+      (function initYouToThem() {
+        const btnStart = document.getElementById("btnTalkMe");
+        const btnStop = document.getElementById("btnStopMe");
+        const status = document.createElement("span");
+        status.className = "pill";
+        status.textContent = "parado";
+        document.querySelector("#btnStopMe").parentElement.appendChild(status);
+
+        const log = document.getElementById("logMe");
+        const destLang = document.getElementById("destLang");
+        const ttsVoice = document.getElementById("ttsVoice");
+
+        const rec = createRecorder({
+          onStop: async (blob) => {
+            try {
+              status.textContent = "transcribiendo…";
+              const { text } = await postAudio(`${API}/transcribe/`, blob);
+              log.innerHTML = `<b>Tú dijiste:</b> ${text}`;
+
+              status.textContent = "traduciendo…";
+              const { translated_text } = await postJSON(`${API}/translate/`, {
+                text,
+                target_lang: destLang.value,
+              });
+              log.innerHTML += `<br/><b>Traducción para ellos:</b> ${translated_text}`;
+
+              status.textContent = "sintetizando…";
+              const ttsBlob = await ttsFetchBlob(
+                translated_text,
+                ttsVoice.value
+              );
+              playBlob(ttsBlob);
+
+              status.textContent = "listo";
+            } catch (e) {
+              status.textContent = "error";
+              console.error(e);
+            }
+          },
+        });
+
+        btnStart.addEventListener("click", async () => {
+          btnStart.disabled = true;
+          btnStop.disabled = false;
+          status.textContent = "grabando…";
+          await rec.start();
+        });
+        btnStop.addEventListener("click", () => {
+          btnStart.disabled = false;
+          btnStop.disabled = true;
+          status.textContent = "procesando…";
+          rec.stop();
+        });
+      })();
+    </script>
+  </body>
+</html>

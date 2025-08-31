@@ -33,7 +33,7 @@ document.getElementById('traducirBtn').addEventListener('click', async () => {
     const btn = document.createElement('button');
     btn.id = "guardarBtn";
     btn.className = "btn btn-success btn-lg";
-    btn.textContent = "💾 Guardar traducciones";
+    btn.textContent = "💾 Guardar";
     btn.addEventListener('click', guardarTraducciones);
 
     contenedor.appendChild(btn);           // Añadimos el botón al contenedor
