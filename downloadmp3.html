@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Texto a MP3</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="container py-4">
+
+  <h1 class="mb-4 text-center">📝 Texto a MP3</h1>
+
+  <!-- Texto a convertir -->
+  <div class="mb-3">
+    <textarea id="ttsText" class="form-control" rows="4" placeholder="Escribe tu texto aquí..."></textarea>
+  </div>
+
+  <!-- Nombre del archivo -->
+  <div class="mb-3">
+    <input id="fileName" type="text" class="form-control" placeholder="Nombre del archivo (sin extensión)">
+  </div>
+
+  <!-- Selector de voz y botón -->
+  <div class="row g-2 mb-3">
+    <div class="col-6">
+      <select id="ttsVoice" class="form-select">
+        <option value="alloy">Alloy</option>
+        <option value="onyx">Onyx</option>
+        <option value="nova">Nova</option>
+        <option value="echo">Echo</option>
+        <option value="fable">Fable</option>
+      </select>
+    </div>
+    <div class="col-6">
+      <button id="btnDownloadMP3" class="btn btn-primary w-100 d-flex justify-content-center align-items-center gap-2">
+        <span id="spinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+        <span id="btnText">⬇️ Descargar MP3</span>
+      </button>
+    </div>
+  </div>
+
+  <script>
+    const API = "http://127.0.0.1:8000/interpreter/downloadmp3/"; // 👈 con la barra final
+    const btnDownloadMP3 = document.getElementById("btnDownloadMP3");
+    const btnText = document.getElementById("btnText");
+    const spinner = document.getElementById("spinner");
+    const ttsText = document.getElementById("ttsText");
+    const ttsVoice = document.getElementById("ttsVoice");
+    const fileNameInput = document.getElementById("fileName");
+
+    async function downloadMP3(text, voice, fileName) {
+      try {
+        // Mostrar spinner y deshabilitar botón
+        btnDownloadMP3.disabled = true;
+        spinner.classList.remove("d-none");
+        btnText.textContent = "Generando…";
+
+        const res = await fetch(API, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text, voice })
+        });
+
+        if (!res.ok) throw new Error("Error al generar el MP3");
+
+        const data = await res.arrayBuffer();
+        const blob = new Blob([data], { type: "audio/mpeg" });
+
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = (fileName || "tts") + ".mp3"; // Usa el nombre escrito o "tts"
+        a.click();
+        URL.revokeObjectURL(a.href);
+
+      } catch (e) {
+        console.error(e);
+        alert("No se pudo generar el MP3: " + e.message);
+      } finally {
+        // Restaurar botón
+        spinner.classList.add("d-none");
+        btnText.textContent = "⬇️ Descargar MP3";
+        btnDownloadMP3.disabled = false;
+      }
+    }
+
+    btnDownloadMP3.addEventListener("click", () => {
+      const text = ttsText.value.trim();
+      const fileName = fileNameInput.value.trim();
+      if (!text) return alert("Escribe algo de texto primero.");
+      downloadMP3(text, ttsVoice.value, fileName);
+    });
+  </script>
+
+</body>
+</html>
