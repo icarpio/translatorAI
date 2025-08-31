@@ -10,69 +10,79 @@
 <body class="container py-4">
 
   <h1 class="mb-4 text-center">🎧 Intérprete</h1>
-<!-- Selectores en la misma línea -->
-<div class="row mb-3 align-items-end g-3">
-  <!-- Idioma de salida -->
-  <div class="col-auto">
-    <label for="yourLang" class="form-label">A ti:</label>
-    <select id="yourLang" class="form-select">
-      <option value="es">Español</option>
-      <option value="en">Inglés</option>
-      <option value="it">Italiano</option>
-    </select>
+
+  <!-- Selectores -->
+  <div class="row mb-3 align-items-end g-3">
+    <div class="col-auto">
+      <label for="yourLang" class="form-label">A ti:</label>
+      <select id="yourLang" class="form-select">
+        <option value="es">Español</option>
+        <option value="en">Inglés</option>
+        <option value="it">Italiano</option>
+      </select>
+    </div>
+    <div class="col-auto">
+      <label for="ttsVoice" class="form-label">Voz:</label>
+      <select id="ttsVoice" class="form-select">
+        <option value="onyx">Onyx</option>
+        <option value="nova">Nova</option>
+        <option value="echo">Echo</option>
+        <option value="fable">Fable</option>
+        <option value="alloy">Alloy</option>
+      </select>
+    </div>
+    <div class="col-auto">
+      <label for="destLang" class="form-label">Tu:</label>
+      <select id="destLang" class="form-select">
+        <option value="en">Inglés</option>
+        <option value="it">Italiano</option>
+        <option value="es">Español</option>
+      </select>
+    </div>
   </div>
 
-  <!-- Voz -->
-  <div class="col-auto">
-    <label for="ttsVoice" class="form-label">Voz:</label>
-    <select id="ttsVoice" class="form-select">
-      <option value="onyx">Onyx</option>
-      <option value="nova">Nova</option>
-      <option value="echo">Echo</option>
-      <option value="fable">Fable</option>
-      <option value="alloy">Alloy</option>
-    </select>
-  </div>
-
-  <!-- Idioma destino -->
-  <div class="col-auto">
-    <label for="destLang" class="form-label">Tu:</label>
-    <select id="destLang" class="form-select">
-      <option value="en">Inglés</option>
-      <option value="it">Italiano</option>
-      <option value="es">Español</option>
-    </select>
-  </div>
-</div>
-
-  <!-- Parte superior: cuando te hablan a ti -->
+  <!-- Ellos → Tú -->
   <div class="mb-4">
     <div class="d-flex justify-content-center">
-  <div class="d-flex align-items-center gap-2 mb-2">
-    <button id="btnListenOther" class="btn btn-primary">🎙️ Escuchar</button>
-    <button id="btnStopOther" class="btn btn-danger" disabled>⏹️</button>
-    <span class="badge bg-secondary" id="statusOther">parado</span>
-  </div>
-</div>
+      <div class="d-flex align-items-center gap-2 mb-2">
+        <button id="btnListenOther" class="btn btn-primary">🎙️ Escuchar</button>
+        <button id="btnStopOther" class="btn btn-danger" disabled>⏹️</button>
+        <span class="badge bg-secondary" id="statusOther">parado</span>
+      </div>
+    </div>
     <div class="border p-3 bg-light rounded" id="logOther" style="min-height: 60px;"></div>
   </div>
 
-  <!-- Parte inferior: cuando tú hablas -->
-<div class="mb-4">
-  <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
-    <button id="btnTalkMe" class="btn btn-success">🎤 Hablar</button>
-    <button id="btnStopMe" class="btn btn-danger" disabled>⏹️</button>
-    <!-- Estado dinámico con badge Bootstrap -->
-    <span class="badge bg-secondary" id="statusMe">parado</span>
+  <!-- Tú → Ellos -->
+  <div class="mb-4">
+    <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
+      <button id="btnTalkMe" class="btn btn-success">🎤 Hablar</button>
+      <button id="btnStopMe" class="btn btn-danger" disabled>⏹️</button>
+      <span class="badge bg-secondary" id="statusMe">parado</span>
+    </div>
+    <div class="border p-3 bg-light rounded" id="logMe" style="min-height: 60px;"></div>
   </div>
-  <div class="border p-3 bg-light rounded" id="logMe" style="min-height: 60px;"></div>
-</div>
 
   <audio id="player" preload="auto"></audio>
-  
+
   <script>
     const API = "https://albertaapi.onrender.com/interpreter";
     const player = document.getElementById("player");
+    let globalStream = null; // <-- stream global para móviles
+
+    // ---- Solicitar micrófono de forma segura
+    async function requestMic() {
+      if (!globalStream) {
+        try {
+          globalStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          alert("Micrófono activado ✅");
+        } catch (err) {
+          alert("No se pudo acceder al micrófono ❌");
+          console.error(err);
+        }
+      }
+      return globalStream;
+    }
 
     // ---- Utils HTTP
     async function postJSON(url, body) {
@@ -84,6 +94,7 @@
       if (!res.ok) throw new Error(await res.text());
       return res.json();
     }
+
     async function postAudio(url, blob) {
       const form = new FormData();
       form.append("audio", blob, "audio.webm");
@@ -100,16 +111,14 @@
       });
       if (!res.ok) throw new Error("TTS failed");
       const buf = await res.arrayBuffer();
-      return new Blob([buf], { type: "audio/mpeg" }); // fijo a mp3
+      return new Blob([buf], { type: "audio/mpeg" });
     }
 
     function playBlob(blob) {
       const url = URL.createObjectURL(blob);
       player.src = url;
       player.play().catch(() => {
-        console.warn(
-          "El navegador bloqueó autoplay. Toca la pantalla y vuelve a reproducir."
-        );
+        console.warn("El navegador bloqueó autoplay. Toca la pantalla y vuelve a reproducir.");
       });
     }
 
@@ -119,13 +128,10 @@
       let chunks = [];
 
       async function start() {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          audio: true,
-        });
+        const stream = await requestMic(); // usar stream global
         mediaRecorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
 
-        mediaRecorder.ondataavailable = (e) =>
-          e.data.size > 0 && chunks.push(e.data);
+        mediaRecorder.ondataavailable = e => e.data.size > 0 && chunks.push(e.data);
         mediaRecorder.onstop = () => {
           const blob = new Blob(chunks, { type: "audio/webm" });
           chunks = [];
@@ -135,10 +141,11 @@
         mediaRecorder.start();
         return mediaRecorder;
       }
+
       function stop() {
-        if (mediaRecorder && mediaRecorder.state !== "inactive")
-          mediaRecorder.stop();
+        if (mediaRecorder && mediaRecorder.state !== "inactive") mediaRecorder.stop();
       }
+
       return { start, stop };
     }
 
@@ -190,8 +197,11 @@
         btnStop.disabled = false;
         status.textContent = "grabando…";
         status.className = "badge bg-primary";
+
+        await requestMic(); // forzar permiso en móvil
         await rec.start();
       });
+
       btnStop.addEventListener("click", () => {
         btnStart.disabled = false;
         btnStop.disabled = true;
@@ -249,8 +259,11 @@
         btnStop.disabled = false;
         status.textContent = "grabando…";
         status.className = "badge bg-primary";
+
+        await requestMic(); // forzar permiso en móvil
         await rec.start();
       });
+
       btnStop.addEventListener("click", () => {
         btnStart.disabled = false;
         btnStop.disabled = true;
