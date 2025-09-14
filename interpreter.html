@@ -45,24 +45,25 @@
   </div>
 </div>
 
-  <!-- Parte superior: cuando te hablan a ti -->
-  <div class="mb-4">
-    <div class="d-flex justify-content-center">
-  <div class="d-flex align-items-center gap-2 mb-2">
-    <button id="btnListenOther" class="btn btn-primary">🎙️ Escuchar</button>
-    <button id="btnStopOther" class="btn btn-danger" disabled>⏹️</button>
-    <span class="badge bg-secondary" id="statusOther">parado</span>
+<!-- Parte superior: cuando te hablan a ti -->
+<div class="mb-4">
+  <div class="d-flex justify-content-center">
+    <div class="d-flex align-items-center gap-2 mb-2">
+      <button id="btnListenOther" class="btn btn-primary">🎙️</button>
+      <button id="btnStopOther" class="btn btn-danger" disabled>⏹️</button>
+      <button id="btnRepeatOther" class="btn btn-secondary" disabled>🔁</button>
+      <span class="badge bg-secondary" id="statusOther">parado</span>
+    </div>
   </div>
+  <div class="border p-3 bg-light rounded" id="logOther" style="min-height: 60px;"></div>
 </div>
-    <div class="border p-3 bg-light rounded" id="logOther" style="min-height: 60px;"></div>
-  </div>
 
-  <!-- Parte inferior: cuando tú hablas -->
+<!-- Parte inferior: cuando tú hablas -->
 <div class="mb-4">
   <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
-    <button id="btnTalkMe" class="btn btn-success">🎤 Hablar</button>
+    <button id="btnTalkMe" class="btn btn-success">🎤</button>
     <button id="btnStopMe" class="btn btn-danger" disabled>⏹️</button>
-    <!-- Estado dinámico con badge Bootstrap -->
+    <button id="btnRepeatMe" class="btn btn-secondary" disabled>🔁</button>
     <span class="badge bg-secondary" id="statusMe">parado</span>
   </div>
   <div class="border p-3 bg-light rounded" id="logMe" style="min-height: 60px;"></div>
@@ -146,10 +147,13 @@
     (function initOtherToYou() {
       const btnStart = document.getElementById("btnListenOther");
       const btnStop = document.getElementById("btnStopOther");
+      const btnRepeat = document.getElementById("btnRepeatOther");
       const status = document.getElementById("statusOther");
       const log = document.getElementById("logOther");
       const yourLang = document.getElementById("yourLang");
       const ttsVoice = document.getElementById("ttsVoice");
+
+      let lastTTSBlob = null; // Guarda el último audio sintetizado
 
       const rec = createRecorder({
         onStop: async (blob) => {
@@ -173,7 +177,10 @@
             status.className = "badge bg-secondary";
 
             const ttsBlob = await ttsFetchBlob(translated_text, ttsVoice.value);
+            lastTTSBlob = ttsBlob; // Guarda para repetir
             playBlob(ttsBlob);
+
+            btnRepeat.disabled = false; // Habilita repetir
 
             status.textContent = "listo";
             status.className = "badge bg-success";
@@ -199,66 +206,87 @@
         status.className = "badge bg-info text-dark";
         rec.stop();
       });
+
+      btnRepeat.addEventListener("click", () => {
+    if (lastTTSBlob) {
+      playBlob(lastTTSBlob);
+    }
+    });
     })();
 
     // ---- Tú → Ellos
     (function initYouToThem() {
-      const btnStart = document.getElementById("btnTalkMe");
-      const btnStop = document.getElementById("btnStopMe");
-      const status = document.getElementById("statusMe");
-      const log = document.getElementById("logMe");
-      const destLang = document.getElementById("destLang");
-      const ttsVoice = document.getElementById("ttsVoice");
+  const btnStart = document.getElementById("btnTalkMe");
+  const btnStop = document.getElementById("btnStopMe");
+  const btnRepeat = document.getElementById("btnRepeatMe");
+  const status = document.getElementById("statusMe");
+  const log = document.getElementById("logMe");
+  const destLang = document.getElementById("destLang");
+  const ttsVoice = document.getElementById("ttsVoice");
 
-      const rec = createRecorder({
-        onStop: async (blob) => {
-          try {
-            status.textContent = "transcribiendo…";
-            status.className = "badge bg-warning text-dark";
+  let lastTTSBlob = null; // Guarda el último audio sintetizado
 
-            const { text } = await postAudio(`${API}/transcribe/`, blob);
-            log.innerHTML = `<div><strong class="text-primary">Tú dijiste:</strong> ${text}</div>`;
+  const rec = createRecorder({
+    onStop: async (blob) => {
+      try {
+        status.textContent = "transcribiendo…";
+        status.className = "badge bg-warning text-dark";
 
-            status.textContent = "traduciendo…";
-            status.className = "badge bg-info text-dark";
+        const { text } = await postAudio(`${API}/transcribe/`, blob);
+        log.innerHTML = `<div><strong class="text-primary">Tú dijiste:</strong> ${text}</div>`;
 
-            const { translated_text } = await postJSON(`${API}/translate/`, {
-              text,
-              target_lang: destLang.value,
-            });
-            log.innerHTML += `<div><strong class="text-success">Traducción:</strong> ${translated_text}</div>`;
-
-            status.textContent = "sintetizando…";
-            status.className = "badge bg-secondary";
-
-            const ttsBlob = await ttsFetchBlob(translated_text, ttsVoice.value);
-            playBlob(ttsBlob);
-
-            status.textContent = "listo";
-            status.className = "badge bg-success";
-          } catch (e) {
-            status.textContent = "error";
-            status.className = "badge bg-danger";
-            console.error(e);
-          }
-        },
-      });
-
-      btnStart.addEventListener("click", async () => {
-        btnStart.disabled = true;
-        btnStop.disabled = false;
-        status.textContent = "grabando…";
-        status.className = "badge bg-primary";
-        await rec.start();
-      });
-      btnStop.addEventListener("click", () => {
-        btnStart.disabled = false;
-        btnStop.disabled = true;
-        status.textContent = "procesando…";
+        status.textContent = "traduciendo…";
         status.className = "badge bg-info text-dark";
-        rec.stop();
-      });
-    })();
+
+        const { translated_text } = await postJSON(`${API}/translate/`, {
+          text,
+          target_lang: destLang.value,
+        });
+        log.innerHTML += `<div><strong class="text-success">Traducción:</strong> ${translated_text}</div>`;
+
+        status.textContent = "sintetizando…";
+        status.className = "badge bg-secondary";
+
+        const ttsBlob = await ttsFetchBlob(translated_text, ttsVoice.value);
+        lastTTSBlob = ttsBlob; // Guarda para repetir
+        playBlob(ttsBlob);
+
+        btnRepeat.disabled = false; // Habilita repetir
+
+        status.textContent = "listo";
+        status.className = "badge bg-success";
+      } catch (e) {
+        status.textContent = "error";
+        status.className = "badge bg-danger";
+        console.error(e);
+      }
+    },
+  });
+
+  btnStart.addEventListener("click", async () => {
+    btnStart.disabled = true;
+    btnStop.disabled = false;
+    btnRepeat.disabled = true; // Desactiva repetir durante grabación
+    status.textContent = "grabando…";
+    status.className = "badge bg-primary";
+    await rec.start();
+  });
+
+  btnStop.addEventListener("click", () => {
+    btnStart.disabled = false;
+    btnStop.disabled = true;
+    status.textContent = "procesando…";
+    status.className = "badge bg-info text-dark";
+    rec.stop();
+  });
+
+  btnRepeat.addEventListener("click", () => {
+    if (lastTTSBlob) {
+      playBlob(lastTTSBlob);
+    }
+  });
+})();
+
   </script>
 </body>
 </html>
